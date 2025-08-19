@@ -151,3 +151,43 @@ Tips
 - Discord Webhook integration (post/cleanup on create/delete/expire)
 - i18n toggle (EN/PT-BR)
 - PWA (manifest + SW), SEO (canonical/OG), UI polish (toasts/loading)
+
+---
+
+## Favicons & PWA manifest
+Favicons are organized under `favicons/` and referenced from `index.html` with cache-busting to avoid stale icons.
+
+Files under `favicons/`:
+- android-chrome-192x192.png
+- android-chrome-512x512.png
+- apple-touch-icon.png
+- favicon-16x16.png
+- favicon-32x32.png
+- favicon.ico
+- site.webmanifest
+
+Head snippet in `index.html` (paths relative to project root):
+- apple-touch-icon → `favicons/apple-touch-icon.png?v=2`
+- 32x32 → `favicons/favicon-32x32.png?v=2`
+- 16x16 → `favicons/favicon-16x16.png?v=2`
+- 192x192/512x512 → `favicons/android-chrome-*.png?v=2`
+- favicon.ico → `favicons/favicon.ico?v=2` (also includes `rel="shortcut icon"`)
+- manifest → `favicons/site.webmanifest?v=2`
+
+Manifest notes:
+- `favicons/site.webmanifest` references icons using absolute paths `/favicons/...` for root deployments.
+- If deploying under a subpath (e.g., `https://domain.com/app`), prefer relative `src` in the manifest (e.g., `android-chrome-192x192.png`) or adjust paths accordingly.
+
+Troubleshooting favicons:
+- Serve over HTTP (e.g., `http://localhost:5500`) instead of opening `file://`, as some browsers skip favicon/manifest on `file://`.
+- Hard reload (Ctrl+F5) and/or clear site data (DevTools → Application → Clear storage).
+- Check DevTools → Network for `favicon*` and ensure 200 responses.
+- Some browsers still probe `/favicon.ico` at the root. If needed, place a copy at the repository root named `favicon.ico`.
+
+## UI text wrapping update
+To avoid awkward single-word lines and overly aggressive breaks, text wrapping rules were adjusted in `styles.css`:
+- `.request-content` and `.request-notes`: `overflow-wrap: break-word; word-break: normal; hyphens: auto;` (with `-webkit-hyphens` for compatibility)
+
+## Footer copy
+Footer text updated to:
+- "Non-profit project. Made by a fan of the series to other fans, site still under management, can be offline sometimes."
