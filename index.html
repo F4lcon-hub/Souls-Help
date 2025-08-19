@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="pt-br">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Souls Help Board</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="container">
+        <div class="brand">Souls Help</div>
+        <nav class="filters" aria-label="Filtros globais">
+          <select id="filter-game" aria-label="Filtrar por jogo">
+            <option value="">Todos os jogos</option>
+            <option value="elden-ring">Elden Ring</option>
+            <option value="ds1">Dark Souls Remastered</option>
+            <option value="ds2">Dark Souls II</option>
+            <option value="ds3">Dark Souls III</option>
+            <option value="bb">Bloodborne</option>
+          </select>
+        </nav>
+      </div>
+    </header>
+
+    <main class="container">
+      <section class="card" aria-label="Criar pedido de ajuda">
+        <h1>Solicitar ajuda</h1>
+        <form id="help-form" class="form" autocomplete="off">
+          <div class="grid">
+            <div class="field">
+              <label for="game">Jogo</label>
+              <select id="game" required>
+                <option value="" disabled selected>Escolha um jogo</option>
+                <option value="elden-ring">Elden Ring</option>
+                <option value="ds1">Dark Souls Remastered</option>
+                <option value="ds2">Dark Souls II</option>
+                <option value="ds3">Dark Souls III</option>
+                <option value="bb">Bloodborne</option>
+              </select>
+            </div>
+
+            <div class="field">
+              <label for="req-type">Tipo</label>
+              <select id="req-type" required>
+                <option value="boss" selected>Derrotar chefe</option>
+                <option value="area">Explorar área</option>
+                <option value="coop">Coop PvE</option>
+                <option value="pvp">PvP</option>
+                <option value="trade">Troca</option>
+                <option value="other">Outro</option>
+              </select>
+            </div>
+
+            <div class="field full">
+              <label for="target">Chefe/Área/Alvo</label>
+              <input id="target" list="target-suggestions" placeholder="Ex.: Margit, Stormveil Castle" required />
+              <datalist id="target-suggestions"></datalist>
+              <small class="hint">Sugestões aparecem para Elden Ring (via API pública). Outros jogos: digite manualmente.</small>
+            </div>
+
+            <div class="field">
+              <label for="platform">Plataforma</label>
+              <select id="platform" required>
+                <option value="ps">PlayStation</option>
+                <option value="xbox">Xbox</option>
+                <option value="pc">PC</option>
+              </select>
+            </div>
+
+            <div class="field">
+              <label for="level">Nível/SL/RL</label>
+              <input id="level" type="number" min="1" step="1" placeholder="Ex.: 50" />
+            </div>
+
+            <div class="field">
+              <label for="password">Senha/Password (opcional)</label>
+              <input id="password" placeholder="Ex.: coop123" />
+            </div>
+
+            <div class="field">
+              <label for="region">Região (opcional)</label>
+              <select id="region">
+                <option value="">Qualquer</option>
+                <option value="americas">Américas</option>
+                <option value="europe">Europa</option>
+                <option value="asia">Ásia</option>
+                <option value="oceania">Oceania</option>
+              </select>
+            </div>
+
+            <div class="field full">
+              <label for="notes">Observações</label>
+              <textarea id="notes" rows="3" placeholder="Ex.: Estou na fogueira X, posso usar voz no Discord, preciso de build sangramento..."></textarea>
+            </div>
+          </div>
+
+          <div class="actions">
+            <button class="primary" type="submit">Publicar pedido</button>
+            <label class="inline">
+              <input id="expire4h" type="checkbox" checked /> Expirar em 4h
+            </label>
+          </div>
+        </form>
+      </section>
+
+      <section class="list" aria-label="Pedidos ativos">
+        <div class="list-header">
+          <h2>Pedidos ativos</h2>
+          <div class="list-actions">
+            <button id="clear-expired" class="ghost" type="button">Limpar expirados</button>
+          </div>
+        </div>
+        <div id="requests" class="requests"></div>
+        <div id="empty-state" class="empty">Nenhum pedido ainda. Publique o primeiro acima.</div>
+      </section>
+    </main>
+
+    <footer class="footer">
+      <div class="container">
+        <small>Este site usa dados públicos da comunidade (Elden Ring Fan API) apenas para sugestões. Não é afiliado à FromSoftware/Bandai. Seus pedidos ficam somente neste navegador.</small>
+      </div>
+    </footer>
+
+    <script defer src="app.js"></script>
+  </body>
+</html>
