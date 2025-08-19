@@ -72,8 +72,8 @@ input:focus, select:focus, textarea:focus{ border-color:var(--primary); box-shad
 .badge.type{ color:#ffd99a; border-color:#3a2a12; background:#1a1209; }
 .badge.platform{ color:#a0e3c0; border-color:#174232; background:#0a1c16; }
 
-.request-content{ color:var(--text); overflow-wrap:anywhere; word-break:break-word; }
-.request-notes{ overflow-wrap:anywhere; word-break:break-word; }
+.request-content{ color:var(--text); overflow-wrap:break-word; word-break:normal; hyphens:auto; -webkit-hyphens:auto; }
+.request-notes{ overflow-wrap:break-word; word-break:normal; hyphens:auto; -webkit-hyphens:auto; }
 .request-meta{ display:flex; align-items:center; gap:12px; color:var(--muted); font-size:12px; }
 .countdown{ color:#ffd99a; }
 
