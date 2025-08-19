@@ -8,6 +8,8 @@ const rateLimit = require('express-rate-limit');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+// Trust the first proxy (Render/other PaaS) so req.ip reflects the real client IP
+app.set('trust proxy', 1);
 
 // Supabase config (required for production)
 const SUPABASE_URL = process.env.SUPABASE_URL || '';
@@ -44,12 +46,14 @@ const generalLimiter = rateLimit({
   max: 300,
   standardHeaders: true,
   legacyHeaders: false,
+  trustProxy: true,
 });
 const writeLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 60,
   standardHeaders: true,
   legacyHeaders: false,
+  trustProxy: true,
 });
 app.use('/api', generalLimiter);
 
