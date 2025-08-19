@@ -10,6 +10,12 @@
     : (location.origin.startsWith('http') ? '' : 'http://localhost:3000');
   const POLL_MS = 15000; // periodic sync
   const HEALTH_URL = `${API_BASE}/api/health`;
+  // Optional Supabase Realtime (frontend) configuration via globals injected in HTML/host
+  const SUPABASE_URL = window.__SUPABASE_URL__ || '';
+  const SUPABASE_ANON_KEY = window.__SUPABASE_ANON_KEY__ || '';
+  let supabaseClient = null;
+  let realtimeSubscribed = false;
+  let realtimeDebounce = null;
 
   // Elements
   const form = document.getElementById('help-form');
@@ -364,6 +370,33 @@
     } catch {}
   })();
 
+  // Realtime via Supabase (optional)
+  async function initRealtime(){
+    try {
+      if (!SUPABASE_URL || !SUPABASE_ANON_KEY) return false;
+      // Load Supabase JS via CDN if not present
+      if (!(window.Supabase && window.Supabase.createClient) && !(window.supabase && window.supabase.createClient)){
+        await new Promise((resolve, reject) => {
+          const s = document.createElement('script');
+          s.src = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2';
+          s.async = true; s.onload = resolve; s.onerror = reject; document.head.appendChild(s);
+        });
+      }
+      const createClient = (window.Supabase && window.Supabase.createClient) || (window.supabase && window.supabase.createClient);
+      if (!createClient) return false;
+      supabaseClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+      supabaseClient
+        .channel('public:requests')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'requests' }, () => {
+          clearTimeout(realtimeDebounce);
+          realtimeDebounce = setTimeout(async () => { await syncFromServer(); render(); }, 200);
+        })
+        .subscribe();
+      realtimeSubscribed = true;
+      return true;
+    } catch { return false; }
+  }
+
   // Status indicator
   async function updateStatus(){
     const el = document.getElementById('api-status');
@@ -374,8 +407,8 @@
     el.classList.toggle('offline', !ok);
   }
 
-  // Background sync
-  setInterval(async () => { await syncFromServer(); render(); updateStatus(); }, POLL_MS);
+  // Background sync (disabled when realtime is active)
+  let pollTimer = setInterval(async () => { await syncFromServer(); render(); updateStatus(); }, POLL_MS);
 
   // Initial render + first sync
   (async () => {
@@ -390,5 +423,7 @@
       const modal = document.getElementById('server-modal');
       if (modal) modal.setAttribute('aria-hidden', 'false');
     }
+    const rt = await initRealtime();
+    if (rt && pollTimer){ clearInterval(pollTimer); }
   })();
 })();

@@ -1,0 +1,9 @@
+/* Larger screens */
+@media (min-width: 1280px){
+  .container{ max-width:1280px; }
+  .requests{ grid-template-columns: repeat(3, minmax(0,1fr)); }
+}
+@media (min-width: 1600px){
+  .container{ max-width:1400px; }
+  .requests{ grid-template-columns: repeat(4, minmax(0,1fr)); }
+}
