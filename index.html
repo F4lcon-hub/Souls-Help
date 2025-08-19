@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="pt-br">
+<html lang="en">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -14,29 +14,30 @@
   <body>
     <header class="topbar">
       <div class="container">
-        <div class="brand">Souls Help</div>
-        <nav class="filters" aria-label="Filtros globais">
-          <select id="filter-game" aria-label="Filtrar por jogo">
-            <option value="">Todos os jogos</option>
+        <div class="brand">Souls Help <span id="api-status" class="status">offline</span></div>
+        <nav class="filters" aria-label="Global filters">
+          <select id="filter-game" aria-label="Filter by game">
+            <option value="">All games</option>
             <option value="elden-ring">Elden Ring</option>
             <option value="ds1">Dark Souls Remastered</option>
             <option value="ds2">Dark Souls II</option>
             <option value="ds3">Dark Souls III</option>
             <option value="bb">Bloodborne</option>
           </select>
+          <button id="btn-info" class="ghost" type="button" aria-haspopup="dialog" aria-controls="info-modal">Info</button>
         </nav>
       </div>
     </header>
 
     <main class="container">
-      <section class="card" aria-label="Criar pedido de ajuda">
-        <h1>Solicitar ajuda</h1>
+      <section class="card" aria-label="Create help request">
+        <h1>Request help</h1>
         <form id="help-form" class="form" autocomplete="off">
           <div class="grid">
             <div class="field">
-              <label for="game">Jogo</label>
+              <label for="game">Game</label>
               <select id="game" required>
-                <option value="" disabled selected>Escolha um jogo</option>
+                <option value="" disabled selected>Choose a game</option>
                 <option value="elden-ring">Elden Ring</option>
                 <option value="ds1">Dark Souls Remastered</option>
                 <option value="ds2">Dark Souls II</option>
@@ -46,26 +47,26 @@
             </div>
 
             <div class="field">
-              <label for="req-type">Tipo</label>
+              <label for="req-type">Type</label>
               <select id="req-type" required>
-                <option value="boss" selected>Derrotar chefe</option>
-                <option value="area">Explorar área</option>
-                <option value="coop">Coop PvE</option>
+                <option value="boss" selected>Defeat boss</option>
+                <option value="area">Explore area</option>
+                <option value="coop">Co-op PvE</option>
                 <option value="pvp">PvP</option>
-                <option value="trade">Troca</option>
-                <option value="other">Outro</option>
+                <option value="trade">Trade</option>
+                <option value="other">Other</option>
               </select>
             </div>
 
             <div class="field full">
-              <label for="target">Chefe/Área/Alvo</label>
-              <input id="target" list="target-suggestions" placeholder="Ex.: Margit, Stormveil Castle" required />
+              <label for="target">Boss/Area/Target</label>
+              <input id="target" list="target-suggestions" placeholder="e.g., Margit, Stormveil Castle" required />
               <datalist id="target-suggestions"></datalist>
-              <small class="hint">Sugestões aparecem para Elden Ring (via API pública). Outros jogos: digite manualmente.</small>
+              <small class="hint">Suggestions appear for Elden Ring (via public API). Other games: type manually.</small>
             </div>
 
             <div class="field">
-              <label for="platform">Plataforma</label>
+              <label for="platform">Platform</label>
               <select id="platform" required>
                 <option value="ps">PlayStation</option>
                 <option value="xbox">Xbox</option>
@@ -74,84 +75,120 @@
             </div>
 
             <div class="field">
-              <label for="level">Nível/SL/RL</label>
-              <input id="level" type="number" min="1" step="1" placeholder="Ex.: 50" />
+              <label for="level">Level/SL/RL</label>
+              <input id="level" type="number" min="1" step="1" placeholder="e.g., 50" />
             </div>
 
             <div class="field">
-              <label for="password">Senha/Password (opcional)</label>
-              <input id="password" placeholder="Ex.: coop123" />
+              <label for="password">Password (optional)</label>
+              <input id="password" placeholder="e.g., coop123" />
             </div>
 
             <div class="field">
-              <label for="region">Região (opcional)</label>
+              <label for="region">Region (optional)</label>
               <select id="region">
-                <option value="">Qualquer</option>
-                <option value="americas">Américas</option>
-                <option value="europe">Europa</option>
-                <option value="asia">Ásia</option>
+                <option value="">Any</option>
+                <option value="americas">Americas</option>
+                <option value="europe">Europe</option>
+                <option value="asia">Asia</option>
                 <option value="oceania">Oceania</option>
               </select>
             </div>
 
             <div class="field full">
-              <label for="notes">Observações</label>
-              <textarea id="notes" rows="3" placeholder="Ex.: Estou na fogueira X, posso usar voz no Discord, preciso de build sangramento..."></textarea>
+              <label for="notes">Notes</label>
+              <textarea id="notes" rows="3" placeholder="e.g., I am at bonfire X, can use voice on Discord, need bleed build..."></textarea>
             </div>
           </div>
 
           <div class="actions">
-            <button class="primary" type="submit">Publicar pedido</button>
+            <button class="primary" type="submit">Post request</button>
             <label class="inline">
-              <input id="expire4h" type="checkbox" checked /> Expirar em 4h
+              <input id="expire4h" type="checkbox" checked /> Expire in 4h
             </label>
           </div>
         </form>
       </section>
 
-      <section class="list" aria-label="Pedidos ativos">
+      <section class="list" aria-label="Active requests">
         <div class="list-header">
-          <h2>Pedidos ativos</h2>
+          <h2>Active requests</h2>
           <div class="list-actions">
-            <button id="clear-expired" class="ghost" type="button">Limpar expirados</button>
+            <button id="clear-expired" class="ghost" type="button">Clear expired</button>
           </div>
         </div>
         <div id="requests" class="requests"></div>
-        <div id="empty-state" class="empty">Nenhum pedido ainda. Publique o primeiro acima.</div>
+        <div id="empty-state" class="empty">No requests yet. Post the first one above.</div>
       </section>
     </main>
 
     <footer class="footer">
       <div class="container">
         <small>
-          Desenvolvido por Falcon. Este site usa dados públicos da comunidade apenas para sugestões e não é afiliado à FromSoftware/Bandai. Seus pedidos ficam somente neste navegador.
-          APIs públicas: Elden Ring Fan API (https://eldenring.fanapis.com) e APIs de fãs para a série Dark Souls.
-          Projeto sem fins lucrativos.
+          Developed by Falcon. This site uses public community data for suggestions only (Elden Ring Fan API) and is not affiliated with FromSoftware/Bandai. Requests are stored on a backend (Supabase) and are publicly visible; do not share sensitive information.
+          Public APIs: Elden Ring Fan API (https://eldenring.fanapis.com) and fan APIs for the Dark Souls series. Non-profit project.
         </small>
       </div>
     </footer>
 
-    <div id="server-modal" class="modal" aria-hidden="true" role="dialog" aria-labelledby="server-modal-title">
+    <div id="info-modal" class="modal" aria-hidden="true" role="dialog" aria-labelledby="info-modal-title">
       <div class="modal-backdrop"></div>
       <div class="modal-dialog">
-        <h3 id="server-modal-title">Ativar servidor local</h3>
-        <p>Para sincronizar publicações com outros usuários, é preciso iniciar o servidor local.</p>
-        <label class="field">
-          <span>Digite INICIAR para mostrar o comando</span>
-          <input id="server-confirm" placeholder="INICIAR" />
-        </label>
-        <div id="server-command" class="code-block" style="display:none;">
-          <code>cd server && npm install && npm start</code>
-          <button id="copy-server-cmd" class="btn" type="button">Copiar</button>
+        <h3 id="info-modal-title">How it works</h3>
+        <div class="content">
+          <p>This site lets you publish and find co-op/help requests for Soulslike games.</p>
+          <ul>
+            <li>Post a request by filling the form. By default it expires in 4 hours (you can extend to 24h).</li>
+            <li>Use the top filter to view only one specific game.</li>
+            <li>Each card has actions: Copy, Share, and Remove.</li>
+            <li>Boss/location suggestions for Elden Ring come from the public Elden Ring Fan API.</li>
+            <li>Requests are stored in a backend (API) backed by a Supabase database.</li>
+            <li>No login: requests are public. Do not share sensitive information.</li>
+          </ul>
+          <p>If the top indicator shows "offline", actions fall back to local storage and will sync when the server becomes reachable.</p>
         </div>
         <div class="actions">
-          <button id="server-retry" class="primary" type="button">Verificar servidor</button>
-          <button id="server-dismiss" class="ghost" type="button">Fechar</button>
+          <button id="info-close" class="primary" type="button">Close</button>
         </div>
-        <small class="hint">Dica: mantenha esta página aberta e rode o comando em um terminal. Depois clique em Verificar servidor.</small>
       </div>
     </div>
 
+    <div id="server-modal" class="modal" aria-hidden="true" role="dialog" aria-labelledby="server-modal-title">
+      <div class="modal-backdrop"></div>
+      <div class="modal-dialog">
+        <h3 id="server-modal-title">Start local server</h3>
+        <p>To synchronize requests across users, you need to start the local server.</p>
+        <label class="field">
+          <span>Type START to show the command</span>
+          <input id="server-confirm" placeholder="START" />
+        </label>
+        <div id="server-command" class="code-block" style="display:none;">
+          <code>cd server && npm install && npm start</code>
+          <button id="copy-server-cmd" class="btn" type="button">Copy</button>
+        </div>
+        <div class="actions">
+          <button id="server-retry" class="primary" type="button">Check server</button>
+          <button id="server-dismiss" class="ghost" type="button">Close</button>
+        </div>
+        <small class="hint">Tip: keep this page open and run the command in a terminal. Then click Check server.</small>
+      </div>
+    </div>
+
+    <script>
+      (function(){
+        const modal = document.getElementById('info-modal');
+        const btn = document.getElementById('btn-info');
+        const closeBtn = document.getElementById('info-close');
+        const backdrop = modal ? modal.querySelector('.modal-backdrop') : null;
+        function open(){ if (modal) modal.setAttribute('aria-hidden','false'); }
+        function close(){ if (modal) modal.setAttribute('aria-hidden','true'); }
+        btn?.addEventListener('click', open);
+        closeBtn?.addEventListener('click', close);
+        backdrop?.addEventListener('click', close);
+        window.addEventListener('keydown', (e) => { if (e.key === 'Escape') close(); });
+      })();
+    </script>
+    <script>window.__API_BASE__ = 'https://souls-help.onrender.com';</script>
     <script defer src="app.js"></script>
   </body>
 </html>
