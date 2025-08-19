@@ -80,6 +80,14 @@ input:focus, select:focus, textarea:focus{ border-color:var(--primary); box-shad
 
 .footer{ border-top:1px solid var(--border); padding:16px 0; margin-top:16px; color:var(--muted); }
 
+ /* Modal */
+ .modal[aria-hidden="true"]{ display:none; }
+ .modal{ position:fixed; inset:0; z-index:100; }
+ .modal-backdrop{ position:absolute; inset:0; background:rgba(0,0,0,0.6); backdrop-filter: blur(2px); }
+ .modal-dialog{ position:relative; max-width:520px; margin:10vh auto; background:var(--card); border:1px solid var(--border); border-radius:12px; padding:16px; color:var(--text); }
+ .code-block{ display:flex; align-items:center; justify-content:space-between; gap:8px; background:var(--soft); border:1px solid var(--border); border-radius:8px; padding:8px 10px; }
+ .code-block code{ color:#ffd99a; overflow:auto; }
+
 @media (max-width: 1000px){
   .requests{ grid-template-columns:1fr; }
   .form .grid{ grid-template-columns:1fr; }

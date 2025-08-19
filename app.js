@@ -4,6 +4,12 @@
   // Config
   const STORAGE_KEY = 'souls_help_requests_v1';
   const DEFAULT_TTL_MS = 4 * 60 * 60 * 1000; // 4h
+  // Backend base (quando servido via HTTP usa caminho relativo; em file:// aponta para localhost)
+  const API_BASE = (typeof window !== 'undefined' && typeof window.__API_BASE__ === 'string' && window.__API_BASE__)
+    ? window.__API_BASE__
+    : (location.origin.startsWith('http') ? '' : 'http://localhost:3000');
+  const POLL_MS = 15000; // sincronização periódica
+  const HEALTH_URL = `${API_BASE}/api/health`;
 
   // Elements
   const form = document.getElementById('help-form');
@@ -33,6 +39,36 @@
 
   function save(){ localStorage.setItem(STORAGE_KEY, JSON.stringify(items)); }
   function load(){ try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'); } catch { return []; } }
+
+  // API helpers (com fallback silencioso)
+  async function apiHealth(){
+    const r = await fetch(HEALTH_URL).catch(()=>null);
+    return !!(r && r.ok);
+  }
+  async function apiList(game){
+    const url = `${API_BASE}/api/requests${game ? `?game=${encodeURIComponent(game)}` : ''}`;
+    const r = await fetch(url).catch(() => null);
+    if (!r || !r.ok) throw new Error('list_failed');
+    return r.json();
+  }
+  async function apiCreate(entry){
+    const r = await fetch(`${API_BASE}/api/requests`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(entry)
+    }).catch(() => null);
+    if (!r || !r.ok) throw new Error('create_failed');
+    return r.json();
+  }
+  async function apiDelete(id){
+    const r = await fetch(`${API_BASE}/api/requests/${encodeURIComponent(id)}`, { method: 'DELETE' }).catch(() => null);
+    if (!r || (r.status !== 204 && r.status !== 404)) throw new Error('delete_failed');
+  }
+
+  async function syncFromServer(){
+    try {
+      const list = await apiList(gameFilter);
+      if (Array.isArray(list)) { items = list; save(); }
+    } catch {}
+  }
 
   function escapeHtml(s){
     return String(s)
@@ -119,14 +155,14 @@
   }
 
   // Events
-  form.addEventListener('submit', (e) => {
+  form.addEventListener('submit', async (e) => {
     e.preventDefault();
     if (!gameSelect.value || !reqType.value || !targetInput.value) return;
 
     const ttl = expire4h.checked ? DEFAULT_TTL_MS : 24*60*60*1000; // até 24h, se desmarcar
 
-    const entry = {
-      id: uid(),
+    // Monta entrada base
+    const baseEntry = {
       createdAt: now(),
       expiresAt: now() + ttl,
       game: gameSelect.value,
@@ -139,13 +175,22 @@
       notes: notesInput.value.trim(),
     };
 
-    items.unshift(entry);
-    save();
-    render();
+    // Tenta criar no backend, senão salva local
+    try {
+      const created = await apiCreate(baseEntry);
+      items.unshift(created);
+      save();
+      render();
+    } catch {
+      const offline = { id: uid(), ...baseEntry };
+      items.unshift(offline);
+      save();
+      render();
+    }
 
     form.reset();
     // manter jogo selecionado para agilizar múltiplas entradas
-    gameSelect.value = entry.game;
+    gameSelect.value = baseEntry.game;
   });
 
   requestsEl.addEventListener('click', async (e) => {
@@ -159,6 +204,7 @@
 
     const action = btn.dataset.action;
     if (action === 'remove'){
+      try { await apiDelete(id); } catch {}
       items.splice(idx,1); save(); render();
     } else if (action === 'copy'){
       const x = items[idx];
@@ -167,15 +213,19 @@
     } else if (action === 'share'){
       const x = items[idx];
       const text = `Ajuda em ${labelGame(x.game)} para ${labelType(x.type)} - Alvo: ${x.target}`;
+      // Gera link de importação com os dados do pedido
+      const payload = btoa(encodeURIComponent(JSON.stringify(x)));
+      const link = `${location.origin}${location.pathname}?import=${payload}`;
       try {
-        if (navigator.share){ await navigator.share({ title:'Souls Help', text }); }
-        else { await navigator.clipboard.writeText(text); btn.textContent = 'Copiado!'; setTimeout(()=>btn.textContent='Compartilhar', 1500);} 
+        if (navigator.share){ await navigator.share({ title:'Souls Help', text, url: link }); }
+        else { await navigator.clipboard.writeText(link); btn.textContent = 'Link copiado!'; setTimeout(()=>btn.textContent='Compartilhar', 1500);} 
       } catch {}
     }
   });
 
-  filterGame.addEventListener('change', () => {
+  filterGame.addEventListener('change', async () => {
     gameFilter = filterGame.value;
+    await syncFromServer();
     render();
   });
 
@@ -198,6 +248,33 @@
       if (left <= 0){ render(); }
     });
   }, 1000);
+
+  // Modal helpers
+  const modal = document.getElementById('server-modal');
+  const confirmInput = document.getElementById('server-confirm');
+  const cmdBox = document.getElementById('server-command');
+  const copyBtn = document.getElementById('copy-server-cmd');
+  const retryBtn = document.getElementById('server-retry');
+  const dismissBtn = document.getElementById('server-dismiss');
+
+  function openModal(){ if (modal) modal.setAttribute('aria-hidden', 'false'); }
+  function closeModal(){ if (modal) modal.setAttribute('aria-hidden', 'true'); }
+
+  confirmInput?.addEventListener('input', () => {
+    const val = (confirmInput.value || '').trim().toUpperCase();
+    cmdBox.style.display = (val === 'INICIAR') ? 'flex' : 'none';
+  });
+  copyBtn?.addEventListener('click', async () => {
+    try {
+      await navigator.clipboard.writeText('cd server && npm install && npm start');
+      copyBtn.textContent = 'Copiado!'; setTimeout(()=> copyBtn.textContent = 'Copiar', 1500);
+    } catch {}
+  });
+  retryBtn?.addEventListener('click', async () => {
+    const ok = await apiHealth();
+    if (ok){ closeModal(); await syncFromServer(); render(); }
+  });
+  dismissBtn?.addEventListener('click', () => closeModal());
 
   // Suggestions via Elden Ring Fan API (bosses & locations)
   // Fonte: https://eldenring.fanapis.com/api
@@ -229,6 +306,45 @@
     }, 250);
   });
 
+  // Import via URL parameter (?import=...)
+  (function(){
+    try {
+      const params = new URLSearchParams(location.search);
+      const raw = params.get('import');
+      if (raw){
+        const entry = JSON.parse(decodeURIComponent(atob(raw)));
+        if (entry && typeof entry === 'object'){
+          const allowedGames = ['elden-ring','ds1','ds2','ds3','bb'];
+          if (entry.game && allowedGames.includes(entry.game) && entry.type && entry.target && entry.platform){
+            // Sanitiza e garante campos obrigatórios
+            entry.id = uid();
+            entry.createdAt = entry.createdAt || now();
+            entry.expiresAt = entry.expiresAt && entry.expiresAt > now() ? entry.expiresAt : now() + DEFAULT_TTL_MS;
+            entry.level = entry.level || '';
+            entry.password = entry.password || '';
+            entry.region = entry.region || '';
+            entry.notes = entry.notes || '';
+            items.unshift(entry); save();
+          }
+        }
+        // Remove o parâmetro para evitar reimport em refresh
+        if (location && location.pathname){
+          history.replaceState(null, '', location.pathname);
+        }
+      }
+    } catch {}
+  })();
+
+  // Sincronização com o servidor em background
+  setInterval(async () => { await syncFromServer(); render(); }, POLL_MS);
+
   // Initial render
   render();
+
+  // Primeira tentativa de sincronização + verificação de servidor
+  (async () => {
+    await syncFromServer(); render();
+    const ok = await apiHealth();
+    if (!ok && API_BASE.includes('localhost')){ openModal(); }
+  })();
 })();

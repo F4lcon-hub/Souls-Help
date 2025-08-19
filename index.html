@@ -131,6 +131,27 @@
       </div>
     </footer>
 
+    <div id="server-modal" class="modal" aria-hidden="true" role="dialog" aria-labelledby="server-modal-title">
+      <div class="modal-backdrop"></div>
+      <div class="modal-dialog">
+        <h3 id="server-modal-title">Ativar servidor local</h3>
+        <p>Para sincronizar publicações com outros usuários, é preciso iniciar o servidor local.</p>
+        <label class="field">
+          <span>Digite INICIAR para mostrar o comando</span>
+          <input id="server-confirm" placeholder="INICIAR" />
+        </label>
+        <div id="server-command" class="code-block" style="display:none;">
+          <code>cd server && npm install && npm start</code>
+          <button id="copy-server-cmd" class="btn" type="button">Copiar</button>
+        </div>
+        <div class="actions">
+          <button id="server-retry" class="primary" type="button">Verificar servidor</button>
+          <button id="server-dismiss" class="ghost" type="button">Fechar</button>
+        </div>
+        <small class="hint">Dica: mantenha esta página aberta e rode o comando em um terminal. Depois clique em Verificar servidor.</small>
+      </div>
+    </div>
+
     <script defer src="app.js"></script>
   </body>
 </html>
