@@ -27,9 +27,11 @@
 
   // PT-BR: Base do backend. Se servido via HTTP, usa relativo; se aberto via file://, aponta para localhost.
   // EN: Backend base. If served via HTTP, use relative; for file:// open, default to localhost.
-  const API_BASE = (typeof window !== 'undefined' && typeof window.__API_BASE__ === 'string' && window.__API_BASE__)
-    ? window.__API_BASE__
-    : (location.origin.startsWith('http') ? '' : 'http://localhost:3000');
+  const API_BASE = (window.Shared && typeof window.Shared.API_BASE === 'string')
+    ? window.Shared.API_BASE
+    : ((typeof window !== 'undefined' && typeof window.__API_BASE__ === 'string' && window.__API_BASE__)
+        ? window.__API_BASE__
+        : (location.origin.startsWith('http') ? '' : 'http://localhost:3000'));
 
   const POLL_MS = 15000; // PT-BR/EN: intervalo do polling de sincronização (ms)
   const HEALTH_URL = `${API_BASE}/api/health`; // PT-BR/EN: endpoint de saúde do backend
@@ -213,6 +215,9 @@
    * @returns {Promise<boolean>}
    */
   async function apiHealth(){
+    if (window.Shared && typeof window.Shared.apiHealth === 'function'){
+      return window.Shared.apiHealth();
+    }
     const r = await fetch(HEALTH_URL, { cache: 'no-store' }).catch(()=>null);
     return !!(r && r.ok);
   }

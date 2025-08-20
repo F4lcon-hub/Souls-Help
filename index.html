@@ -182,21 +182,9 @@
       </div>
     </div>
 
-    <script>
-      (function(){
-        const modal = document.getElementById('info-modal');
-        const btn = document.getElementById('btn-info');
-        const closeBtn = document.getElementById('info-close');
-        const backdrop = modal ? modal.querySelector('.modal-backdrop') : null;
-        function open(){ if (modal) modal.setAttribute('aria-hidden','false'); }
-        function close(){ if (modal) modal.setAttribute('aria-hidden','true'); }
-        btn?.addEventListener('click', open);
-        closeBtn?.addEventListener('click', close);
-        backdrop?.addEventListener('click', close);
-        window.addEventListener('keydown', (e) => { if (e.key === 'Escape') close(); });
-      })();
-    </script>
-    <script>window.__API_BASE__ = 'https://souls-help.onrender.com';</script>
+        <script>window.__API_BASE__ = 'https://souls-help.onrender.com';</script>
+    <script defer src="shared.js"></script>
+    <script defer src="ui.js"></script>
     <script defer src="app.js"></script>
   </body>
 </html>
