@@ -1,23 +1,52 @@
 (function(){
   'use strict';
 
+  /*
+    Souls Help Frontend (UI)
+
+    PT-BR (resumo):
+    - Interface para publicar e listar pedidos de ajuda em jogos Soulslike.
+    - Sincroniza com um backend (API/Supabase). Se estiver offline, usa localStorage como fallback.
+    - Inclui paginação, filtro por jogo, sugestões de chefe/local para Elden Ring, compartilhamento e cópia de detalhes.
+    - Indicador de status online/offline e rotina de retry automática quando o backend estiver indisponível.
+
+    EN-US (summary):
+    - UI to publish and list help requests for Soulslike games.
+    - Syncs with a backend (API/Supabase). Falls back to localStorage when offline.
+    - Includes pagination, game filter, Elden Ring boss/location suggestions, share and copy actions.
+    - Online/offline status indicator and automatic retry routine when backend is down.
+  */
+
+  // =====================
   // Config
+  // =====================
+  // PT-BR: Chaves/constantes de configuração geral.
+  // EN: General configuration keys/constants.
   const STORAGE_KEY = 'souls_help_requests_v1';
-  const DEFAULT_TTL_MS = 4 * 60 * 60 * 1000; // 4h
-  // Backend base (when served via HTTP, use relative; in file:// fallback to localhost)
+  const DEFAULT_TTL_MS = 4 * 60 * 60 * 1000; // PT-BR/EN: 4h (expiração padrão)
+
+  // PT-BR: Base do backend. Se servido via HTTP, usa relativo; se aberto via file://, aponta para localhost.
+  // EN: Backend base. If served via HTTP, use relative; for file:// open, default to localhost.
   const API_BASE = (typeof window !== 'undefined' && typeof window.__API_BASE__ === 'string' && window.__API_BASE__)
     ? window.__API_BASE__
     : (location.origin.startsWith('http') ? '' : 'http://localhost:3000');
-  const POLL_MS = 15000; // periodic sync
-  const HEALTH_URL = `${API_BASE}/api/health`;
-  // Optional Supabase Realtime (frontend) configuration via globals injected in HTML/host
+
+  const POLL_MS = 15000; // PT-BR/EN: intervalo do polling de sincronização (ms)
+  const HEALTH_URL = `${API_BASE}/api/health`; // PT-BR/EN: endpoint de saúde do backend
+
+  // PT-BR: Configuração opcional do Supabase Realtime (via variáveis globais injetadas).
+  // EN: Optional Supabase Realtime configuration (via injected globals).
   const SUPABASE_URL = window.__SUPABASE_URL__ || '';
   const SUPABASE_ANON_KEY = window.__SUPABASE_ANON_KEY__ || '';
   let supabaseClient = null;
   let realtimeSubscribed = false;
   let realtimeDebounce = null;
 
-  // Elements
+  // =====================
+  // Elementos (DOM)
+  // =====================
+  // PT-BR: Referências aos elementos da interface.
+  // EN: References to UI DOM elements.
   const form = document.getElementById('help-form');
   const requestsEl = document.getElementById('requests');
   const emptyEl = document.getElementById('empty-state');
@@ -35,7 +64,11 @@
   const notesInput = document.getElementById('notes');
   const expire4h = document.getElementById('expire4h');
 
-  // Pagination UI (created dynamically)
+  // =====================
+  // Paginação (UI dinâmica)
+  // =====================
+  // PT-BR: Construímos a UI de paginação via JS e inserimos após o empty-state.
+  // EN: Build pagination UI via JS and insert it after empty-state.
   const pagination = document.createElement('div');
   pagination.id = 'pagination';
   pagination.className = 'actions';
@@ -43,25 +76,32 @@
   const pageInfo = document.createElement('span'); pageInfo.id = 'page-info'; pageInfo.className = 'page-info';
   const pageNext = document.createElement('button'); pageNext.id = 'page-next'; pageNext.className = 'ghost'; pageNext.type = 'button'; pageNext.textContent = 'Next';
   pagination.appendChild(pagePrev); pagination.appendChild(pageInfo); pagination.appendChild(pageNext);
-  // Place after empty-state for layout
   if (emptyEl && emptyEl.parentNode){ emptyEl.parentNode.appendChild(pagination); }
 
-  // State
+  // =====================
+  // Estado (State)
+  // =====================
+  // PT-BR: items é o cache local (offline). gameFilter é o filtro por jogo.
+  // EN: items is the local (offline) cache. gameFilter filters by game.
   let items = load(); // local cache (used for offline fallback)
   let gameFilter = '';
   let currentPage = 1;
-  let pageSize = 12; // default page size
+  let pageSize = 12; // PT-BR/EN: tamanho padrão de página
   let total = 0;
   let pageCount = 1;
 
-  // Utils
-  const now = () => Date.now();
-  const uid = () => Math.random().toString(36).slice(2) + Date.now().toString(36);
+  // =====================
+  // Utilitários (Utils)
+  // =====================
+  const now = () => Date.now(); // PT-BR/EN: timestamp atual
+  const uid = () => Math.random().toString(36).slice(2) + Date.now().toString(36); // PT-BR/EN: id simples
 
   function save(){ localStorage.setItem(STORAGE_KEY, JSON.stringify(items)); }
   function load(){ try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'); } catch { return []; } }
 
   function escapeHtml(s){
+    // PT-BR: Sanitiza texto para evitar quebra de HTML.
+    // EN: Sanitize text to avoid breaking HTML.
     return String(s)
       .replace(/&/g, '&amp;')
       .replace(/</g, '&lt;')
@@ -69,6 +109,8 @@
   }
 
   function fmtRemaining(ms){
+    // PT-BR: Formata tempo restante (ms) em string amigável.
+    // EN: Format remaining time (ms) into a friendly string.
     if (ms <= 0) return 'expired';
     const s = Math.floor(ms/1000);
     const h = Math.floor(s/3600);
@@ -80,12 +122,15 @@
   }
 
   function pruneExpiredLocal(){
+    // PT-BR: Remove do cache local os itens expirados.
+    // EN: Remove expired items from local cache.
     const t = now();
     items = items.filter(x => (x.expiresAt ?? 0) > t);
   }
 
   function updatePaginationUI(){
-    // Hide or show pagination based on total
+    // PT-BR: Atualiza botões/infos da paginação com base no total.
+    // EN: Update pagination buttons/info based on totals.
     const shouldShow = total > pageSize;
     pagination.style.display = shouldShow ? 'flex' : 'none';
     pageCount = Math.max(1, Math.ceil(total / pageSize));
@@ -94,9 +139,12 @@
     pageInfo.textContent = `Page ${currentPage} of ${pageCount}`;
   }
 
-  // Rendering
+  // =====================
+  // Renderização (Render)
+  // =====================
   function render(){
-    // For offline/local rendering, items already represent the current slice
+    // PT-BR: Renderiza a lista atual (fatiada) e estado vazio.
+    // EN: Render current (sliced) list and empty state.
     const list = items.slice();
     requestsEl.innerHTML = list.map(renderItem).join('');
     emptyEl.style.display = list.length ? 'none' : 'block';
@@ -104,6 +152,8 @@
   }
 
   function renderItem(x){
+    // PT-BR: Template de um card de pedido.
+    // EN: Card template for a request.
     const left = (x.expiresAt ?? 0) - now();
     const notes = x.notes ? `<div class="request-notes">${escapeHtml(x.notes)}</div>` : '';
     return `
@@ -135,6 +185,8 @@
   }
 
   function labelGame(code){
+    // PT-BR: Converte códigos de jogo em rótulos amigáveis.
+    // EN: Convert game codes to human-readable labels.
     const map = {
       'elden-ring':'Elden Ring', 'ds1':'Dark Souls Remastered', 'ds2':'Dark Souls II', 'ds3':'Dark Souls III',
       'bb':'Bloodborne'
@@ -142,19 +194,37 @@
     return map[code] || code;
   }
   function labelType(code){
+    // PT-BR/EN: Converte tipo (código -> rótulo)
     const map = { boss:'Defeat boss', area:'Explore area', coop:'Co-op PvE', pvp:'PvP', trade:'Trade', other:'Other' };
     return map[code] || code;
   }
   function labelPlatform(code){
+    // PT-BR/EN: Converte plataforma (código -> rótulo)
     const map = { ps:'PlayStation', xbox:'Xbox', pc:'PC' };
     return map[code] || code;
   }
 
-  // API helpers (with graceful fallback)
+  // =====================
+  // API helpers (com fallback offline)
+  // =====================
+  /**
+   * PT-BR: Verifica se o backend está saudável.
+   * EN: Check whether backend health endpoint is OK.
+   * @returns {Promise<boolean>}
+   */
   async function apiHealth(){
     const r = await fetch(HEALTH_URL, { cache: 'no-store' }).catch(()=>null);
     return !!(r && r.ok);
   }
+
+  /**
+   * PT-BR: Lista pedidos pela API (com paginação). Lança erro se falhar.
+   * EN: List requests from API (paginated). Throws on failure.
+   * @param {string} game - PT-BR: filtro por jogo | EN: game filter
+   * @param {number} page - PT-BR/EN: página
+   * @param {number} size - PT-BR/EN: tamanho da página
+   * @returns {Promise<any>} PT-BR: resposta do servidor | EN: server response
+   */
   async function apiList(game, page, size){
     const params = new URLSearchParams();
     if (game) params.set('game', game);
@@ -165,6 +235,13 @@
     if (!r || !r.ok) throw new Error('list_failed');
     return r.json();
   }
+
+  /**
+   * PT-BR: Cria um pedido via API. Lança erro se falhar.
+   * EN: Create a request via API. Throws on failure.
+   * @param {object} entry
+   * @returns {Promise<any>}
+   */
   async function apiCreate(entry){
     const r = await fetch(`${API_BASE}/api/requests`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(entry)
@@ -172,13 +249,21 @@
     if (!r || !r.ok) throw new Error('create_failed');
     return r.json();
   }
+
+  /**
+   * PT-BR: Remove um pedido via API. Lança erro se falhar.
+   * EN: Delete a request via API. Throws on failure.
+   * @param {string} id
+   * @returns {Promise<void>}
+   */
   async function apiDelete(id){
     const r = await fetch(`${API_BASE}/api/requests/${encodeURIComponent(id)}`, { method: 'DELETE' }).catch(() => null);
     if (!r || (r.status !== 204 && r.status !== 404)) throw new Error('delete_failed');
   }
 
   function sliceLocalForPage(){
-    // Build local filtered list and slice to current page
+    // PT-BR: Monta lista local filtrada/ordenada e fatiada para a página atual.
+    // EN: Build local filtered/sorted list and slice for the current page.
     pruneExpiredLocal();
     const full = (items || []).filter(x => !gameFilter || x.game === gameFilter).sort((a,b) => a.expiresAt - b.expiresAt);
     total = full.length;
@@ -190,11 +275,13 @@
   }
 
   async function syncFromServer(){
+    // PT-BR: Sincroniza do servidor. Em caso de erro, usa dados locais (offline).
+    // EN: Sync from server. On error, fallback to local data (offline mode).
     try {
       const res = await apiList(gameFilter, currentPage, pageSize);
       if (Array.isArray(res)){
-        // Back-compat (non-paginated response)
-        // Emulate server-side pagination
+        // PT-BR: Compatibilidade com resposta não paginada (antiga)
+        // EN: Back-compat for non-paginated response
         items = res;
         total = res.length;
         sliceLocalForPage();
@@ -207,17 +294,20 @@
       }
       save();
     } catch (e) {
-      // Offline fallback: use local data
+      // PT-BR: Offline: trabalha com os dados locais.
+      // EN: Offline mode: work with local data.
       sliceLocalForPage();
     }
   }
 
-  // Events
+  // =====================
+  // Eventos (Form, Lista, Filtro, Paginação)
+  // =====================
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
     if (!gameSelect.value || !reqType.value || !targetInput.value) return;
 
-    const ttl = expire4h.checked ? DEFAULT_TTL_MS : 24*60*60*1000; // up to 24h if unchecked
+    const ttl = expire4h.checked ? DEFAULT_TTL_MS : 24*60*60*1000; // PT-BR/EN: 24h se desmarcado
 
     const baseEntry = {
       createdAt: now(),
@@ -234,10 +324,13 @@
 
     try {
       const created = await apiCreate(baseEntry);
-      // After create, reload page 1 to show newest first if desired; keep current page to minimize jump
+      // PT-BR: Após criar no servidor, sincroniza e renderiza.
+      // EN: After creating on server, sync and render.
       await syncFromServer();
       render();
     } catch {
+      // PT-BR: Fallback offline: cria localmente, salva e renderiza.
+      // EN: Offline fallback: create locally, save and render.
       const offline = { id: uid(), ...baseEntry };
       items.unshift(offline);
       save();
@@ -245,6 +338,8 @@
       render();
     }
 
+    // PT-BR: Limpa o formulário, mas mantém o jogo selecionado.
+    // EN: Reset form while keeping selected game.
     form.reset();
     gameSelect.value = baseEntry.game;
   });
@@ -260,18 +355,23 @@
 
     const action = btn.dataset.action;
     if (action === 'remove'){
+      // PT-BR: Tenta remover no servidor; em qualquer caso atualiza lista local e re-renderiza.
+      // EN: Try to delete on server; either way update local list and re-render.
       try { await apiDelete(id); } catch {}
       items.splice(idx,1); save();
       await syncFromServer();
       render();
     } else if (action === 'copy'){
+      // PT-BR: Copia os detalhes para a área de transferência.
+      // EN: Copy details to clipboard.
       const x = items[idx];
       const text = `Help request (${labelGame(x.game)} - ${labelType(x.type)})\nTarget: ${x.target}\nPlatform: ${labelPlatform(x.platform)}\n${x.level?`Level: ${x.level}\n`:''}${x.region?`Region: ${x.region}\n`:''}${x.password?`Password: ${x.password}\n`:''}${x.notes?`Notes: ${x.notes}\n`:''}`;
       try { await navigator.clipboard.writeText(text); btn.textContent = 'Copied!'; setTimeout(()=>btn.textContent='Copy details', 1500);} catch {}
     } else if (action === 'share'){
+      // PT-BR: Gera link com payload de importação e usa Web Share API (se disponível).
+      // EN: Generate link with import payload and use Web Share API (if available).
       const x = items[idx];
       const text = `Help in ${labelGame(x.game)} for ${labelType(x.type)} - Target: ${x.target}`;
-      // Share link import payload
       const payload = btoa(encodeURIComponent(JSON.stringify(x)));
       const link = `${location.origin}${location.pathname}?import=${payload}`;
       try {
@@ -282,6 +382,8 @@
   });
 
   filterGame.addEventListener('change', async () => {
+    // PT-BR: Muda filtro de jogo e sincroniza página 1.
+    // EN: Change game filter and sync page 1.
     gameFilter = filterGame.value;
     currentPage = 1;
     await syncFromServer();
@@ -296,13 +398,19 @@
   });
 
   clearExpiredBtn.addEventListener('click', () => {
+    // PT-BR: Limpa itens expirados do cache local.
+    // EN: Clear expired items from local cache.
     pruneExpiredLocal();
     sliceLocalForPage();
     render();
   });
 
-  // Countdown refresher
+  // =====================
+  // Atualização de contagem regressiva (UX)
+  // =====================
   setInterval(() => {
+    // PT-BR: Atualiza os timers de cada card a cada segundo.
+    // EN: Update each card timer every second.
     const nodes = document.querySelectorAll('.request');
     nodes.forEach(n => {
       const id = n.getAttribute('data-id');
@@ -314,7 +422,15 @@
     });
   }, 1000);
 
-  // Suggestions via Elden Ring Fan API (bosses & locations)
+  // =====================
+  // Sugestões (Elden Ring Fan API)
+  // =====================
+  /**
+   * PT-BR: Busca nomes (chefes/locais) para autocompletar quando jogo = Elden Ring.
+   * EN: Fetch names (bosses/locations) to autocomplete when game = Elden Ring.
+   * @param {string} term
+   * @returns {Promise<string[]>}
+   */
   async function fetchSuggestions(term){
     const q = term.trim().toLowerCase();
     if (!q || gameSelect.value !== 'elden-ring') return [];
@@ -335,6 +451,8 @@
 
   let suggestTimer = null;
   targetInput.addEventListener('input', () => {
+    // PT-BR: Debounce simples para não fazer requisições a cada tecla.
+    // EN: Simple debounce to avoid a request per keystroke.
     clearTimeout(suggestTimer);
     suggestTimer = setTimeout(async () => {
       const term = targetInput.value;
@@ -343,8 +461,12 @@
     }, 250);
   });
 
-  // Import via URL parameter (?import=...)
+  // =====================
+  // Importação via URL (?import=...)
+  // =====================
   (function(){
+    // PT-BR: Permite importar um pedido via parâmetro de URL e adicioná-lo localmente.
+    // EN: Allow importing a request via URL parameter and add it locally.
     try {
       const params = new URLSearchParams(location.search);
       const raw = params.get('import');
@@ -370,11 +492,18 @@
     } catch {}
   })();
 
-  // Realtime via Supabase (optional)
+  // =====================
+  // Realtime via Supabase (opcional)
+  // =====================
+  /**
+   * PT-BR: Inicializa canal realtime do Supabase (se chaves válidas existirem). Retorna true/false.
+   * EN: Initialize Supabase realtime channel (if valid keys exist). Returns true/false.
+   */
   async function initRealtime(){
     try {
       if (!SUPABASE_URL || !SUPABASE_ANON_KEY) return false;
-      // Load Supabase JS via CDN if not present
+      // PT-BR: Carrega supabase-js via CDN se não estiver presente.
+      // EN: Load supabase-js from CDN if not present.
       if (!(window.Supabase && window.Supabase.createClient) && !(window.supabase && window.supabase.createClient)){
         await new Promise((resolve, reject) => {
           const s = document.createElement('script');
@@ -388,6 +517,8 @@
       supabaseClient
         .channel('public:requests')
         .on('postgres_changes', { event: '*', schema: 'public', table: 'requests' }, () => {
+          // PT-BR: Debounce: várias mudanças em sequência viram uma sincronização.
+          // EN: Debounce: multiple rapid changes collapse into one sync.
           clearTimeout(realtimeDebounce);
           realtimeDebounce = setTimeout(async () => { await syncFromServer(); render(); }, 200);
         })
@@ -397,7 +528,13 @@
     } catch { return false; }
   }
 
-  // Status indicator
+  // =====================
+  // Indicador de status (online/offline)
+  // =====================
+  /**
+   * PT-BR: Atualiza o rótulo/estilo do indicador de status com base na saúde do backend.
+   * EN: Update status indicator label/style based on backend health.
+   */
   async function updateStatus(){
     const el = document.getElementById('api-status');
     if (!el) return;
@@ -407,22 +544,62 @@
     el.classList.toggle('offline', !ok);
   }
 
-  // Background sync (disabled when realtime is active)
+  // =====================
+  // Retry automático de backend
+  // =====================
+  // PT-BR: Quando o backend não responde, tentamos novamente em intervalos até voltar.
+  // EN: When backend is down, keep retrying at intervals until it comes back.
+  let backendRetryTimer = null;
+  function startBackendRetry(intervalMs = 5000){
+    if (backendRetryTimer) return; // PT-BR/EN: evita múltiplos timers
+    async function attempt(){
+      const ok = await apiHealth();
+      if (ok){
+        await syncFromServer();
+        render();
+        await updateStatus();
+        const modal = document.getElementById('server-modal');
+        if (modal) modal.setAttribute('aria-hidden', 'true');
+        backendRetryTimer = null; // PT-BR/EN: libera para futuros retries se necessário
+      } else {
+        backendRetryTimer = setTimeout(attempt, intervalMs);
+      }
+    }
+    attempt();
+  }
+
+  // =====================
+  // Polling de fundo
+  // =====================
+  // PT-BR: Sincroniza periodicamente quando não há realtime.
+  // EN: Periodic sync when realtime is not active.
   let pollTimer = setInterval(async () => { await syncFromServer(); render(); updateStatus(); }, POLL_MS);
 
-  // Initial render + first sync
+  // =====================
+  // Boot inicial
+  // =====================
   (async () => {
-    // prepare local slice for initial paint
+    // PT-BR: Prepara primeira renderização (dados locais), depois tenta sincronizar do servidor.
+    // EN: Prepare first paint (local data), then try syncing from the server.
     sliceLocalForPage();
     render();
     await syncFromServer();
     render();
     await updateStatus();
+
+    // PT-BR: Se o backend estiver offline, mostramos o modal (quando localhost) e iniciamos retry.
+    // EN: If backend is offline, show modal (when localhost) and start retry.
     const ok = await apiHealth();
-    if (!ok && API_BASE.includes('localhost')){
-      const modal = document.getElementById('server-modal');
-      if (modal) modal.setAttribute('aria-hidden', 'false');
+    if (!ok){
+      if (API_BASE.includes('localhost')){
+        const modal = document.getElementById('server-modal');
+        if (modal) modal.setAttribute('aria-hidden', 'false');
+      }
+      startBackendRetry(5000);
     }
+
+    // PT-BR: Tenta habilitar realtime. Se ligar, desativa o polling para evitar duplicidade.
+    // EN: Try enabling realtime. If active, disable polling to avoid duplication.
     const rt = await initRealtime();
     if (rt && pollTimer){ clearInterval(pollTimer); }
   })();
