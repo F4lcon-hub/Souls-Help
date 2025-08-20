@@ -2,7 +2,7 @@
 
 Versão em inglês: consulte o arquivo `README.md`.
 
-Um quadro leve para publicar e descobrir pedidos de coop/ajuda para jogos Soulslike.
+Um quadro leve para publicar e descobrir pedidos de coop/ajuda para jogos Soulslik
 
 Pilha atual
 - Frontend: estático (index.html, styles.css, app.js)
