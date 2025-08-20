@@ -191,3 +191,57 @@ To avoid awkward single-word lines and overly aggressive breaks, text wrapping r
 ## Footer copy
 Footer text updated to:
 - "Non-profit project. Made by a fan of the series to other fans, site still under management, can be offline sometimes."
+
+---
+
+## Hierarquia de arquivos por importância (PT-BR)
+
+1) Críticos para a execução do app (Frontend)
+- app.js — Lógica principal da aplicação (renderização, sincronização, fallback offline, status/retry).
+- index.html — Estrutura da página; injeta __API_BASE__, carrega app.js e styles.css, contém modais.
+- styles.css — Estilos base usados em todo o frontend.
+
+2) Críticos para o modo online (Backend)
+- server/server.js — API (Node/Express) que integra com Supabase.
+- server/package.json — Dependências e scripts do backend.
+
+3) Auxiliares de UX/Assets e conveniência
+- favicons/ (e site.webmanifest) — Ícones e manifest PWA.
+- start.bat — Script de conveniência no Windows (instala e inicia o backend e abre o navegador).
+- styles-mobile.css, styles-desktop.css — Estilos opcionais/alternativos. Observação: atualmente o index.html referencia styles.css.
+
+4) Documentação e tooling
+- README.md — Documentação do projeto (setup, API, deploy, estrutura).
+- .vscode/, .qodo/, .git/ — Pastas de tooling/controle de versão (não impactam a execução em produção).
+
+Notas rápidas
+- Para o frontend funcionar: index.html + styles.css + app.js são indispensáveis.
+- Para funcionalidades online (feed compartilhado): é necessário o backend (server/ + variáveis SUPABASE_*).
+- Sem backend: o app opera em modo offline (localStorage), com sincronização assim que o backend voltar (retry automático).
+
+---
+
+## File hierarchy by importance (EN-US)
+
+1) Critical for app runtime (Frontend)
+- app.js — Core app logic (rendering, sync, offline fallback, status/retry).
+- index.html — Page skeleton; injects __API_BASE__, loads app.js and styles.css, hosts modals.
+- styles.css — Base styles used across the frontend.
+
+2) Critical for online mode (Backend)
+- server/server.js — API (Node/Express) integrating with Supabase.
+- server/package.json — Backend dependencies and scripts.
+
+3) UX/assets and convenience
+- favicons/ (and site.webmanifest) — Icons and PWA manifest.
+- start.bat — Windows convenience script (installs/starts backend and opens browser).
+- styles-mobile.css, styles-desktop.css — Optional/alternative styles. Note: index.html currently references styles.css.
+
+4) Documentation and tooling
+- README.md — Project documentation (setup, API, deploy, structure).
+- .vscode/, .qodo/, .git/ — Tooling/version control folders (no impact on production runtime).
+
+Quick notes
+- To run the frontend: index.html + styles.css + app.js are essential.
+- For online features (shared feed): backend (server/ + SUPABASE_* envs) is required.
+- Without backend: the app runs in offline mode (localStorage), syncing once backend is back (automatic retry).
